@@ -6,13 +6,13 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.kotlin.mock
-import page.ooooo.geoshare.R
 import page.ooooo.geoshare.data.di.FakeInputRepository
 import page.ooooo.geoshare.data.local.preferences.Permission
 import page.ooooo.geoshare.lib.Uri
 import page.ooooo.geoshare.lib.geo.Source
 import page.ooooo.geoshare.lib.geo.WGS84Point
 import page.ooooo.geoshare.lib.inputs.BasicInput
+import page.ooooo.geoshare.lib.inputs.InputGroup
 import page.ooooo.geoshare.lib.inputs.MatchedInput
 import page.ooooo.geoshare.lib.inputs.NoopInput
 import page.ooooo.geoshare.lib.inputs.ParseResult
@@ -40,8 +40,8 @@ class PermissionGrantedTest {
     @Test
     fun transition_whenInputIsWebViewInput_returnsPermissionGrantedWebViewInput() = runTest {
         val input = object : WebViewInput {
-            override val permissionTitleResId = R.string.converter_google_maps_permission_title
-            override val loadingIndicatorTitleResId = R.string.converter_google_maps_loading_indicator_title
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
 
             override fun getUnsafeExtractionJavaScript(match: String) = "undefined"
 
@@ -63,7 +63,10 @@ class PermissionGrantedTest {
 
     @Test
     fun transition_whenInputIsNoopInput_returnsDataParsed() = runTest {
-        val input = object : NoopInput {}
+        val input = object : NoopInput {
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
+        }
         val matchedInput = MatchedInput<NoopInput>(input, source)
         val state = PermissionGranted(source, matchedInput, permission, results)
         assertEquals(

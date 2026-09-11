@@ -27,12 +27,13 @@ class BodyAsTextInputTest {
         }
     }
     val input = object : BodyAsTextInput {
+        override fun getName(resources: Resources) = "Test Input"
+        override val group = InputGroup.DEBUG
+
         override val engine = this@BodyAsTextInputTest.engine
         override val log = FakeLog
         override val uriQuote = FakeUriQuote
 
-        override val permissionTitleResId get() = throw NotImplementedError()
-        override val loadingIndicatorTitleResId get() = throw NotImplementedError()
 
         override suspend fun parse(
             data: String,

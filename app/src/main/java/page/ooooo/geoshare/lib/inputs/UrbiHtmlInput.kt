@@ -1,7 +1,6 @@
 package page.ooooo.geoshare.lib.inputs
 
 import android.content.res.Resources
-import androidx.annotation.StringRes
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readLine
@@ -20,11 +19,8 @@ class UrbiHtmlInput @Inject constructor(
     override val log: Log,
     override val uriQuote: UriQuote,
 ) : BodyAsChannelInput {
-    @StringRes
-    override val permissionTitleResId = R.string.converter_urbi_permission_title
-
-    @StringRes
-    override val loadingIndicatorTitleResId = R.string.converter_urbi_loading_indicator_title
+    override fun getName(resources: Resources) = resources.getString(R.string.input_urbi_html_name)
+    override val group = InputGroup.URBI
 
     override suspend fun parse(
         data: ByteReadChannel,

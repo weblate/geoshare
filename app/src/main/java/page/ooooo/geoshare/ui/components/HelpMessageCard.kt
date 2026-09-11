@@ -5,9 +5,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -81,42 +81,53 @@ fun HelpMessageCard(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
             ),
         ) {
-            Box {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(spacing.small),
-                    verticalArrangement = Arrangement.spacedBy(spacing.tiny),
-                ) {
-                    CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium) {
-                        CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(fontWeight = FontWeight.Bold)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.extraTiny),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium) {
+                    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(fontWeight = FontWeight.Bold)) {
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .padding(vertical = spacing.tiny)
+                                .padding(start = spacing.small)
+                        ) {
                             title()
                         }
-                        content()
-                        actionText?.invoke()?.let { actionText ->
-                            Text(
-                                buildAnnotatedString {
-                                    ClickableLink(
-                                        actionText,
-                                        styles = AnnotatedString.UnderlinedLinkStyles,
-                                        onClick = onAction,
-                                    )
-                                }
-                            )
-                        }
-                        after?.invoke()
                     }
                 }
                 IconButton(
                     { onDismiss(helpMessage) },
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .testTag("geoShareHelpMessageDismiss"),
+                    Modifier.testTag("geoShareHelpMessageDismiss_$helpMessage"),
                 ) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = stringResource(R.string.intro_nav_close),
                     )
+                }
+            }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.small)
+                    .padding(bottom = spacing.small),
+                verticalArrangement = Arrangement.spacedBy(spacing.tiny),
+            ) {
+                CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.bodyMedium) {
+                    content()
+                    actionText?.invoke()?.let { actionText ->
+                        Text(
+                            buildAnnotatedString {
+                                ClickableLink(
+                                    actionText,
+                                    styles = AnnotatedString.UnderlinedLinkStyles,
+                                    onClick = onAction,
+                                )
+                            }
+                        )
+                    }
+                    after?.invoke()
                 }
             }
         }
@@ -149,8 +160,8 @@ private fun DefaultPreview() {
                     inlineContent = mapOf(
                         shareIconId to InlineTextContent(
                             Placeholder(
-                                width = 14.sp,
-                                height = 14.sp,
+                                width = shareIconSize,
+                                height = shareIconSize,
                                 placeholderVerticalAlign = PlaceholderVerticalAlign.Center,
                             )
                         ) {
@@ -191,8 +202,8 @@ private fun DarkPreview() {
                     inlineContent = mapOf(
                         shareIconId to InlineTextContent(
                             Placeholder(
-                                width = 14.sp,
-                                height = 14.sp,
+                                width = shareIconSize,
+                                height = shareIconSize,
                                 placeholderVerticalAlign = PlaceholderVerticalAlign.Center,
                             )
                         ) {
@@ -217,7 +228,7 @@ private fun TabletPreview() {
             HelpMessageCard(
                 helpMessage = HelpMessage.SHARE_SOURCE,
                 dismissedHelpMessages = MutableStateFlow(emptySet()),
-                title = { Text(stringResource(R.string.help_share_source_title)) },
+                title = { Text("Kotlin is a modern language that's concise, multiplatform, and interoperable with Java and other languages.") },
                 actionText = { stringResource(R.string.help_share_source_action, "OsmAnd") },
                 onAction = {},
                 onDismiss = {},
@@ -233,8 +244,8 @@ private fun TabletPreview() {
                     inlineContent = mapOf(
                         shareIconId to InlineTextContent(
                             Placeholder(
-                                width = 14.sp,
-                                height = 14.sp,
+                                width = shareIconSize,
+                                height = shareIconSize,
                                 placeholderVerticalAlign = PlaceholderVerticalAlign.Center,
                             )
                         ) {

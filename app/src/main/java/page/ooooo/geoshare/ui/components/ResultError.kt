@@ -1,138 +1,79 @@
 package page.ooooo.geoshare.ui.components
 
 import android.content.res.Configuration
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import page.ooooo.geoshare.R
+import page.ooooo.geoshare.lib.conversion.ConversionFailed
+import page.ooooo.geoshare.lib.conversion.ConversionState
 import page.ooooo.geoshare.ui.theme.AppTheme
 import page.ooooo.geoshare.ui.theme.LocalSpacing
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ResultError(
-    source: String,
-    message: String,
-    details: String?,
-    warning: Boolean,
+    state: ConversionState.HasError,
     initialExpanded: Boolean = false,
     onNavigateToInputsScreen: () -> Unit,
     onRetry: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val uriHandler = LocalUriHandler.current
-    var expanded by remember { mutableStateOf(initialExpanded) }
 
-    // Animate alpha when the conversion is being retried, so that there's a visual feedback even if the conversion
-    // leads to the same result and nothing changes in the end
-    val (isRetrying, setIsRetrying) = remember { mutableStateOf(false) }
-    val animatedAlpha by animateFloatAsState(
-        targetValue = if (isRetrying) 0.5f else 1f,
-        finishedListener = { setIsRetrying(false) },
-    )
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .graphicsLayer { alpha = animatedAlpha }
-    ) {
-        Column(
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.conversion_error_title),
             Modifier
                 .padding(horizontal = spacing.windowPadding)
-                .padding(bottom = spacing.tiny)
-        ) {
-            if (details != null) {
-                ExpandablePane(
-                    expanded = expanded,
-                    onSetExpanded = { expanded = it },
-                    title = {
-                        SelectionContainer(Modifier.weight(1f)) {
-                            Text(
-                                message,
-                                Modifier.testTag("geoShareConversionErrorMessage"),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        }
-                    },
-                ) {
-                    SelectionContainer {
-                        Text(
-                            details,
-                            Modifier.padding(top = spacing.tiny),
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 25,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            } else {
-                SelectionContainer(Modifier.fillMaxWidth()) {
-                    Text(
-                        message,
-                        Modifier.testTag("geoShareConversionErrorMessage"),
-                        style = MaterialTheme.typography.bodyLarge,
+                .padding(top = spacing.small, bottom = spacing.small),
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        SelectionContainer {
+            Column(
+                Modifier.padding(horizontal = spacing.windowPadding),
+                verticalArrangement = Arrangement.spacedBy(spacing.tiny),
+            ) {
+                Text(
+                    state.message,
+                    Modifier.testTag("geoShareConversionErrorMessage"),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                state.stackTrace?.let { details ->
+                    ResultDetails(
+                        details,
+                        initialExpanded = initialExpanded,
                     )
                 }
-            }
-            if (source.isNotEmpty()) {
-                SelectionContainer(Modifier.padding(top = spacing.small)) {
-                    if (source.startsWith("https://")) {
-                        Text(
-                            source,
-                            modifier = Modifier.clickable { uriHandler.openUri(source) },
-                            textDecoration = TextDecoration.Underline,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else {
-                        Text(
-                            source,
-                            fontStyle = FontStyle.Italic,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
+                ResultUri(state.source)
             }
         }
         ScrollableChips {
-            if (!warning) {
+            if (!state.warning) {
                 item {
                     StyledChip(
                         stringResource(R.string.conversion_error_retry),
                         icon = {
                             Icon(Icons.Default.Refresh, null)
                         },
-                        onClick = {
-                            setIsRetrying(true)
-                            onRetry()
-                        },
+                        onClick = onRetry,
                     )
                 }
                 item {
+                    val uriHandler = LocalUriHandler.current
                     StyledChip(
                         stringResource(R.string.conversion_error_report),
                     ) {
@@ -160,15 +101,15 @@ fun ResultError(
 @Composable
 private fun DefaultPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ) {
+        val state = ConversionFailed(
+            source = "41°24′12.2″N 2°10′26.5″E",
+            message = stringResource(R.string.conversion_failed_reason_no_points),
+            stackTrace = NotImplementedError().stackTraceToString(),
+            warning = false,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "41°24′12.2″N 2°10′26.5″E",
-                message = stringResource(R.string.conversion_failed_reason_no_points),
-                details = NotImplementedError().stackTraceToString(),
-                warning = false,
+                state = state,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
             )
@@ -180,15 +121,15 @@ private fun DefaultPreview() {
 @Composable
 private fun DarkPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ) {
+        val state = ConversionFailed(
+            source = "41°24′12.2″N 2°10′26.5″E",
+            message = stringResource(R.string.conversion_failed_reason_no_points),
+            stackTrace = NotImplementedError().stackTraceToString(),
+            warning = false,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "41°24′12.2″N 2°10′26.5″E",
-                message = stringResource(R.string.conversion_failed_reason_no_points),
-                details = NotImplementedError().stackTraceToString(),
-                warning = false,
+                state = state,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
             )
@@ -200,15 +141,15 @@ private fun DarkPreview() {
 @Composable
 private fun ExpandedPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ) {
+        val state = ConversionFailed(
+            source = "41°24′12.2″N 2°10′26.5″E",
+            message = stringResource(R.string.conversion_failed_reason_no_points),
+            stackTrace = NotImplementedError().stackTraceToString(),
+            warning = false,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "41°24′12.2″N 2°10′26.5″E",
-                message = stringResource(R.string.conversion_failed_reason_no_points),
-                details = NotImplementedError().stackTraceToString(),
-                warning = false,
+                state = state,
                 initialExpanded = true,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
@@ -221,15 +162,15 @@ private fun ExpandedPreview() {
 @Composable
 private fun DarkExpandedPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ) {
+        val state = ConversionFailed(
+            source = "41°24′12.2″N 2°10′26.5″E",
+            message = stringResource(R.string.conversion_failed_reason_no_points),
+            stackTrace = NotImplementedError().stackTraceToString(),
+            warning = false,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "41°24′12.2″N 2°10′26.5″E",
-                message = stringResource(R.string.conversion_failed_reason_no_points),
-                details = NotImplementedError().stackTraceToString(),
-                warning = false,
+                state = state,
                 initialExpanded = true,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
@@ -240,18 +181,16 @@ private fun DarkExpandedPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun EmptySourcePreview() {
+private fun NoDetailsPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ) {
+        val state = ConversionFailed(
+            source = "",
+            message = stringResource(R.string.conversion_failed_reason_no_points),
+            warning = false,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "",
-                message = stringResource(R.string.conversion_failed_reason_no_points),
-                details = null,
-                warning = false,
-                initialExpanded = false,
+                state = state,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
             )
@@ -261,18 +200,16 @@ private fun EmptySourcePreview() {
 
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun DarkEmptySourcePreview() {
+private fun DarkNoDetailsPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        ) {
+        val state = ConversionFailed(
+            source = "",
+            message = stringResource(R.string.conversion_failed_reason_no_points),
+            warning = false,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "",
-                message = stringResource(R.string.conversion_failed_reason_no_points),
-                details = null,
-                warning = false,
-                initialExpanded = false,
+                state = state,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
             )
@@ -284,15 +221,14 @@ private fun DarkEmptySourcePreview() {
 @Composable
 private fun WarningPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
+        val state = ConversionFailed(
+            source = "https://share.google/diIxnYa8dIA6dZfpy",
+            message = stringResource(R.string.conversion_failed_unsupported_source_google_search),
+            warning = true,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "https://share.google/diIxnYa8dIA6dZfpy",
-                message = stringResource(R.string.conversion_failed_unsupported_source_google_search),
-                details = null,
-                warning = true,
+                state = state,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
             )
@@ -304,15 +240,14 @@ private fun WarningPreview() {
 @Composable
 private fun DarkWarningPreview() {
     AppTheme {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
+        val state = ConversionFailed(
+            source = "https://share.google/diIxnYa8dIA6dZfpy",
+            message = stringResource(R.string.conversion_failed_unsupported_source_google_search),
+            warning = true,
+        )
+        Surface(color = mainContainerColor(state)) {
             ResultError(
-                source = "https://share.google/diIxnYa8dIA6dZfpy",
-                message = stringResource(R.string.conversion_failed_unsupported_source_google_search),
-                details = null,
-                warning = true,
+                state = state,
                 onNavigateToInputsScreen = {},
                 onRetry = {},
             )

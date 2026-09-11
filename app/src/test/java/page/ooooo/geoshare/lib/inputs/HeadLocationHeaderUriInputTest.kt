@@ -39,13 +39,14 @@ class HeadLocationHeaderUriInputTest {
         }
     }
     val input = object : HeadLocationHeaderInput {
+        override fun getName(resources: Resources) = "Test Input"
+        override val group = InputGroup.DEBUG
+
         override val engine = this@HeadLocationHeaderUriInputTest.engine
         override val log = FakeLog
         override val uriQuote = FakeUriQuote
 
         override val pattern get() = throw NotImplementedError()
-        override val permissionTitleResId get() = throw NotImplementedError()
-        override val loadingIndicatorTitleResId get() = throw NotImplementedError()
 
         override suspend fun parse(
             data: Uri,

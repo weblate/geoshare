@@ -33,16 +33,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import page.ooooo.geoshare.R
-import page.ooooo.geoshare.lib.android.AppDetail
 import page.ooooo.geoshare.lib.android.AppDetails
 import page.ooooo.geoshare.lib.android.PackageNames
 import page.ooooo.geoshare.lib.billing.AutomationFeature
@@ -76,9 +77,9 @@ import kotlin.time.DurationUnit
 @Composable
 fun ResultTitle(
     currentState: ConversionState.HasResult,
-    appDetails: AppDetails,
+    appDetails: StateFlow<AppDetails>,
     billingFeatures: List<Feature>,
-    billingStatus: BillingStatus,
+    billingStatus: StateFlow<BillingStatus>,
     modifier: Modifier = Modifier,
     animationsEnabled: Boolean = true,
     onCancel: () -> Unit,
@@ -86,16 +87,24 @@ fun ResultTitle(
 ) {
     var counterSec by remember { mutableIntStateOf(0) }
 
+    val appDetails by appDetails.collectAsStateWithLifecycle()
+    val billingStatus by billingStatus.collectAsStateWithLifecycle()
+
     AnimatedMessage(
         state = currentState,
         isMessageShown = { state ->
-            state is ActionWaiting ||
-                state is ActionSucceeded ||
-                state is ActionAutomationSucceeded ||
-                state is ActionFailed ||
-                state is ActionAutomationFailed ||
-                state is LocationFindingFailed ||
-                state is ConversionState.HasSmallLoadingIndicator
+            when (state) {
+                is ActionWaiting,
+                is ActionSucceeded,
+                is ActionAutomationSucceeded,
+                is ActionFailed,
+                is ActionAutomationFailed,
+                is LocationFindingFailed,
+                is LocationPermissionReceived,
+                    -> true
+
+                else -> false
+            }
         },
         modifier = modifier
             .fillMaxWidth()
@@ -168,9 +177,9 @@ fun ResultTitle(
                 )
             }
 
-            is ConversionState.HasSmallLoadingIndicator -> ResultMessageRow {
+            is LocationPermissionReceived -> ResultMessageRow {
                 ResultMessageText(
-                    targetState.getLoadingIndicator(LocalResources.current).message,
+                    stringResource(R.string.conversion_succeeded_location_loading_indicator_title),
                     Modifier.testTag("geoShareResultSmallLoadingIndicatorMessage"),
                 )
                 FilledIconButton(
@@ -204,7 +213,7 @@ fun ResultTitle(
                     Button(
                         { onNavigateToUserPreferencesScreen(UserPreferenceGroupId.AUTOMATION) },
                         modifier.testTag("geoShareResultAutomationButton"),
-                        colors = ButtonDefaults.elevatedButtonColors(
+                        colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ),
@@ -260,27 +269,21 @@ private fun RowScope.ResultMessageText(
 private fun ActionCompletedPreview() {
     AppTheme {
         Surface {
-            val context = LocalContext.current
-            @SuppressLint("LocalContextGetResourceValueCall")
             ResultTitle(
                 currentState = ActionCompleted(
                     source = "https://maps.app.goo.gl/TmbeHMiLEfTBws9EA",
                     points = persistentListOf(WGS84Point(NaivePoint.example)),
                     actionResult = ActionResult.SUCCEEDED,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -295,27 +298,21 @@ private fun ActionCompletedPreview() {
 private fun DarkActionCompletedPreview() {
     AppTheme {
         Surface {
-            val context = LocalContext.current
-            @SuppressLint("LocalContextGetResourceValueCall")
             ResultTitle(
                 currentState = ActionCompleted(
                     source = "https://maps.app.goo.gl/TmbeHMiLEfTBws9EA",
                     points = persistentListOf(WGS84Point(NaivePoint.example)),
                     actionResult = ActionResult.SUCCEEDED,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -331,23 +328,15 @@ private fun ActionCompletedFeatureNotAvailablePreview() {
     AppTheme {
         Surface {
             Column {
-                val context = LocalContext.current
-                @SuppressLint("LocalContextGetResourceValueCall")
                 ResultTitle(
                     currentState = ActionCompleted(
                         source = "https://maps.app.goo.gl/TmbeHMiLEfTBws9EA",
                         points = persistentListOf(WGS84Point(NaivePoint.example)),
                         actionResult = ActionResult.SUCCEEDED,
                     ),
-                    appDetails = mapOf(
-                        PackageNames.OSMAND_PLUS to AppDetail(
-                            packageName = PackageNames.OSMAND_PLUS,
-                            label = "OsmAnd",
-                            icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                        ),
-                    ),
+                    appDetails = MutableStateFlow(fakeAppDetails()),
                     billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                    billingStatus = BillingStatus.NotPurchased(),
+                    billingStatus = MutableStateFlow(BillingStatus.NotPurchased()),
                     animationsEnabled = false,
                     onCancel = {},
                     onNavigateToUserPreferencesScreen = {},
@@ -364,23 +353,15 @@ private fun DarkActionCompletedFeatureNotAvailablePreview() {
     AppTheme {
         Surface {
             Column {
-                val context = LocalContext.current
-                @SuppressLint("LocalContextGetResourceValueCall")
                 ResultTitle(
                     currentState = ActionCompleted(
                         source = "https://maps.app.goo.gl/TmbeHMiLEfTBws9EA",
                         points = persistentListOf(WGS84Point(NaivePoint.example)),
                         actionResult = ActionResult.SUCCEEDED,
                     ),
-                    appDetails = mapOf(
-                        PackageNames.OSMAND_PLUS to AppDetail(
-                            packageName = PackageNames.OSMAND_PLUS,
-                            label = "OsmAnd",
-                            icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                        ),
-                    ),
+                    appDetails = MutableStateFlow(fakeAppDetails()),
                     billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                    billingStatus = BillingStatus.NotPurchased(),
+                    billingStatus = MutableStateFlow(BillingStatus.NotPurchased()),
                     animationsEnabled = false,
                     onCancel = {},
                     onNavigateToUserPreferencesScreen = {},
@@ -410,19 +391,15 @@ private fun ActionWaitingPreview() {
                     isAutomation = true,
                     delay = 3.seconds,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -451,19 +428,15 @@ private fun DarkActionWaitingPreview() {
                     isAutomation = true,
                     delay = 3.seconds,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -490,19 +463,15 @@ private fun LocationPermissionReceivedPreview() {
                         .toAction(WGS84Point(NaivePoint.example)),
                     isAutomation = true,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -529,19 +498,15 @@ private fun DarkLocationPermissionReceivedPreview() {
                         .toAction(WGS84Point(NaivePoint.example)),
                     isAutomation = true,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -567,19 +532,15 @@ private fun SucceededPreview() {
                     output = SavePointsGpxOutput(coordinateConverter),
                     actionResult = ActionResult.SUCCEEDED,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -605,19 +566,15 @@ private fun DarSucceededPreview() {
                     output = SavePointsGpxOutput(coordinateConverter),
                     actionResult = ActionResult.SUCCEEDED,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -643,19 +600,15 @@ private fun FailedPreview() {
                     output = SavePointsGpxOutput(coordinateConverter),
                     actionResult = ActionResult.FAILED,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},
@@ -681,19 +634,15 @@ private fun DarkFailedPreview() {
                     output = SavePointsGpxOutput(coordinateConverter),
                     actionResult = ActionResult.FAILED,
                 ),
-                appDetails = mapOf(
-                    PackageNames.OSMAND_PLUS to AppDetail(
-                        packageName = PackageNames.OSMAND_PLUS,
-                        label = "OsmAnd",
-                        icon = context.getDrawable(R.mipmap.ic_launcher_round)!!
-                    ),
-                ),
+                appDetails = MutableStateFlow(fakeAppDetails()),
                 billingFeatures = listOf(AutomationFeature, CustomLinkFeature),
-                billingStatus = BillingStatus.Purchased(
-                    BillingProduct("test", BillingProduct.Type.DONATION),
-                    expired = false,
-                    refundable = true,
-                    token = "test_purchased",
+                billingStatus = MutableStateFlow(
+                    BillingStatus.Purchased(
+                        BillingProduct("test", BillingProduct.Type.DONATION),
+                        expired = false,
+                        refundable = true,
+                        token = "test_purchased",
+                    )
                 ),
                 animationsEnabled = false,
                 onCancel = {},

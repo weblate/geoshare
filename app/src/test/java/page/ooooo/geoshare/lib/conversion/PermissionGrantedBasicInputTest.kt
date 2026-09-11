@@ -10,6 +10,7 @@ import io.ktor.utils.io.CancellationException
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
@@ -23,6 +24,7 @@ import page.ooooo.geoshare.lib.geo.Source
 import page.ooooo.geoshare.lib.geo.WGS84Point
 import page.ooooo.geoshare.lib.inputs.BasicInput
 import page.ooooo.geoshare.lib.inputs.Input
+import page.ooooo.geoshare.lib.inputs.InputGroup
 import page.ooooo.geoshare.lib.inputs.MatchedInput
 import page.ooooo.geoshare.lib.inputs.ParseResult
 import page.ooooo.geoshare.lib.network.ConnectionClosedNetworkException
@@ -39,14 +41,15 @@ class PermissionGrantedBasicInputTest {
     private val log = FakeLog
     private val source = "https://maps.google.com/foo"
     private val input = object : BasicInput<String>, Input.HasPermission {
+        override fun getName(resources: Resources) = "Test Input"
+        override val group = InputGroup.DEBUG
+
         override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
             block("$match-data")
 
         override suspend fun parse(data: String, match: String, resources: Resources) =
             result.copy(next = next.copy(match = data)) // Store data in MatchedInput, so we can test it
 
-        override val permissionTitleResId = R.string.converter_google_maps_permission_title
-        override val loadingIndicatorTitleResId = R.string.converter_google_maps_loading_indicator_title
     }
     private val matchedInput = MatchedInput<BasicInput<String>>(input, source)
     private val points = persistentListOf(WGS84Point(1.0, 2.0, source = Source.GENERATED))
@@ -60,7 +63,6 @@ class PermissionGrantedBasicInputTest {
     private val maxAttempts = 3
     private val resources: Resources = mock {
         on { getString(R.string.conversion_failed_unsupported_source_place_list) } doReturn "Place lists are not supported"
-        on { getString(R.string.converter_google_maps_loading_indicator_title) } doReturn "Connecting to Google..."
         on { getString(R.string.conversion_failed_cancelled) } doReturn "Cancelled"
         on { getString(R.string.conversion_failed_reason_invalid_url) } doReturn "Invalid URL"
         on { getString(R.string.conversion_failed_reason_missing_header) } doReturn "missing HTTP header"
@@ -105,6 +107,9 @@ class PermissionGrantedBasicInputTest {
     fun transition_whenInputFetchSucceedsAndParseReturnsWarning_returnsConversionFailed() =
         runTest {
             val input = object : BasicInput<String> {
+                override fun getName(resources: Resources) = "Test Input"
+                override val group = InputGroup.DEBUG
+
                 override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
                     block("$match-data")
 
@@ -136,6 +141,9 @@ class PermissionGrantedBasicInputTest {
     @Test
     fun transition_whenInputFetchThrowsCancellationException_returnsConversionFailed() = runTest {
         val input = object : BasicInput<String> {
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
+
             override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
                 throw CancellationException()
 
@@ -161,6 +169,9 @@ class PermissionGrantedBasicInputTest {
     @Test
     fun transition_whenInputFetchThrowsMalformedURLException_returnsConversionFailed() = runTest {
         val input = object : BasicInput<String> {
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
+
             override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
                 throw MalformedURLException()
 
@@ -190,6 +201,9 @@ class PermissionGrantedBasicInputTest {
     fun transition_whenInputFetchThrowsRecoverableNetworkExceptionAndLastAttemptIsNull_retries() = runTest {
         val cause = SocketTimeoutNetworkException(SocketTimeoutException())
         val input = object : BasicInput<String> {
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
+
             override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
                 throw cause
 
@@ -226,6 +240,9 @@ class PermissionGrantedBasicInputTest {
     fun transition_whenInputFetchThrowsRecoverableNetworkExceptionAndLastAttemptIsOne_waitsAndRetries() = runTest {
         val cause = SocketTimeoutNetworkException(SocketTimeoutException())
         val input = object : BasicInput<String> {
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
+
             override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
                 throw cause
 
@@ -263,6 +280,9 @@ class PermissionGrantedBasicInputTest {
     fun transition_whenInputFetchThrowsRecoverableNetworkExceptionAndLastAttemptIsMaxAttempts_returnsConversionFailed() =
         runTest {
             val input = object : BasicInput<String> {
+                override fun getName(resources: Resources) = "Test Input"
+                override val group = InputGroup.DEBUG
+
                 override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
                     throw NotImplementedError()
 
@@ -307,6 +327,9 @@ class PermissionGrantedBasicInputTest {
         }
         val cause = ResponseNetworkException(response, Exception())
         val input = object : BasicInput<String> {
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
+
             override suspend fun fetch(match: String, block: suspend (String) -> ParseResult) =
                 throw cause
 
@@ -328,14 +351,14 @@ class PermissionGrantedBasicInputTest {
             ConversionFailed(
                 source,
                 resources.getString(R.string.network_exception_response_error, HttpStatusCode.NotFound.value),
-                details = "Request URL: $requestUrl",
+                stackTrace = "Request URL: $requestUrl",
             ),
             state.transition(stateContext),
         )
     }
 
     @Test
-    fun getLoadingIndicator_whenLastAttemptIsNull_returnsLargeLoadingIndicatorWithoutDescription() = runTest {
+    fun getDetails_whenLastAttemptIsNull_returnsNull() = runTest {
         val state = PermissionGrantedBasicInput(
             source,
             matchedInput,
@@ -344,16 +367,11 @@ class PermissionGrantedBasicInputTest {
             lastAttempt = null,
             dispatcher = testScheduler,
         )
-        assertEquals(
-            LoadingIndicator.Large(
-                title = resources.getString(R.string.converter_google_maps_loading_indicator_title),
-            ),
-            state.getLoadingIndicator(resources),
-        )
+        assertNull(state.getDetails(resources))
     }
 
     @Test
-    fun getLoadingIndicator_whenLastAttemptNumberIsOne_returnsLargeLoadingIndicatorWithDescription() = runTest {
+    fun getDetails_whenLastAttemptNumberIsOne_returnsDetails() = runTest {
         val lastAttempt = Attempt<RecoverableNetworkException>(1, lastCause)
         val state = PermissionGrantedBasicInput(
             source,
@@ -364,16 +382,13 @@ class PermissionGrantedBasicInputTest {
             dispatcher = testScheduler,
         )
         assertEquals(
-            LoadingIndicator.Large(
-                title = resources.getString(R.string.converter_google_maps_loading_indicator_title),
-                description = resources.getString(
-                    R.string.conversion_loading_indicator_description,
-                    2,
-                    10,
-                    resources.getString(R.string.network_exception_eof),
-                ),
+            resources.getString(
+                R.string.conversion_loading_indicator_description,
+                2,
+                10,
+                resources.getString(R.string.network_exception_eof),
             ),
-            state.getLoadingIndicator(resources),
+            state.getDetails(resources),
         )
     }
 }

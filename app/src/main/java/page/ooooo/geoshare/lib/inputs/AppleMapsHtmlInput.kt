@@ -1,7 +1,6 @@
 package page.ooooo.geoshare.lib.inputs
 
 import android.content.res.Resources
-import androidx.annotation.StringRes
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readLine
@@ -22,11 +21,8 @@ class AppleMapsHtmlInput @Inject constructor(
     override val log: Log,
     override val uriQuote: UriQuote,
 ) : BodyAsChannelInput {
-    @StringRes
-    override val permissionTitleResId = R.string.converter_apple_maps_permission_title
-
-    @StringRes
-    override val loadingIndicatorTitleResId = R.string.converter_apple_maps_loading_indicator_title
+    override fun getName(resources: Resources) = resources.getString(R.string.input_apple_maps_html_name)
+    override val group = InputGroup.APPLE_MAPS
 
     // Use custom user agent instead of BrowserUserAgent, so that Apple Maps doesn't show "Unsupported browser"
     override val userAgent = DESKTOP_USER_AGENT

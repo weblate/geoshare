@@ -2,7 +2,6 @@ package page.ooooo.geoshare.lib.inputs
 
 import android.content.res.Resources
 import android.webkit.WebSettings
-import androidx.annotation.StringRes
 import page.ooooo.geoshare.R
 import page.ooooo.geoshare.lib.network.DESKTOP_USER_AGENT
 import javax.inject.Inject
@@ -12,11 +11,8 @@ import javax.inject.Singleton
 class GoogleMapsWebViewInput @Inject constructor(
     private val googleMapsUriInput: dagger.Lazy<GoogleMapsUriInput>,
 ) : WebViewInput {
-    @StringRes
-    override val permissionTitleResId = R.string.converter_google_maps_permission_title
-
-    @StringRes
-    override val loadingIndicatorTitleResId = R.string.converter_google_maps_loading_indicator_title
+    override fun getName(resources: Resources) = resources.getString(R.string.input_google_maps_web_view_name)
+    override val group = InputGroup.GOOGLE_MAPS
 
     /**
      * Extracts the URL of the page.

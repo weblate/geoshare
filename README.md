@@ -213,6 +213,18 @@ or [Izzy on Droid](https://apt.izzysoft.de/packages/page.ooooo.geoshare).
 Open this repo in Android Studio to build and run the app, and to run unit tests
 and instrumented tests.
 
+### Running unit tests using the command line
+
+```shell
+./gradlew testFreeDebugUnitTest testProDebugUnitTest
+```
+
+### Lint using the command line
+
+```shell
+./gradlew lintFreeDebug lintProDebug
+```
+
 ### Generating a signed release APK
 
 ```shell
@@ -241,10 +253,10 @@ fastlane metadata
 
 ### Taking screenshots for F-Droid and Google Play listing
 
-1. Start an emulator of a device of type `phone`.
+1. Start a `Medium Phone` emulator.
 
-2. Install CoMaps and OsmAnd, so these apps appear on the screenshots on the
-   conversion result screen.
+2. Install CoMaps and OsmAnd, because these apps should appear on the
+   screenshots on the conversion result screen.
 
 3. Take the screenshots:
 
@@ -252,16 +264,67 @@ fastlane metadata
     SCREENGRAB_DEVICE_TYPE=phone fastlane screenshots
     ```
 
-Repeat the process for the `sevenInch` and `tenInch` device types.
+4. Repeat the process for a small tablet:
+
+    - Emulator: `Nexus 7` (portrait orientation)
+    - Command: `SCREENGRAB_DEVICE_TYPE=sevenInch fastlane screenshots`
+
+5. Repeat the process for a medium tablet:
+
+    - Emulator: `Medium Tablet` (landscape orientation)
+    - Command: `SCREENGRAB_DEVICE_TYPE=tenInch fastlane screenshots`
+
+6. Then install `optipng` and optimize all the screenshot PNG files:
+
+    ```shell
+    find ./fastlane/metadata/android/en-US/images -name '*.png' -exec optipng -preserve '{}' \;
+    find ./fastlane/metadata_pro/android/en-US/images -name '*.png' -exec optipng -preserve '{}' \;
+    ```
 
 ### Taking screenshots for documentation (Weblate translations)
 
-```shell
-./gradlew :app:mediumPhoneApi37FreeDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
-./gradlew :app:mediumPhoneApi37ProDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
-./gradlew :app:mediumPhoneApi37DemoDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
-./gradlew :app:copyScreenshots
-```
+1. Most screenshots can be taken on a Gradle-managed device, so you don't need
+   to have an emulator set up. Run:
+
+    ```shell
+    ./gradlew :app:mediumPhoneApi37FreeDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
+    ./gradlew :app:mediumPhoneApi37ProDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
+    ./gradlew :app:mediumPhoneApi37DemoDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
+    ./gradlew :app:copyScreenshots
+    ```
+
+2. Some screenshots require the OsmAnd~ and Conversations apps installed.
+   Install these apps in an emulator, start it, and run:
+
+    ```shell
+    ./gradlew :app:connectedFreeDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
+    ```
+
+   Then copy the following screenshots from
+   `build/outputs/connected_android_test_additional_output/freeDebugAndroidTest/connected/<device>`
+   to `docs/screenshots`:
+
+    - `main_strings/automation_share_gpx_route_success.webp`
+    - `main_strings/automation_share_gpx_route_waiting.webp`
+    - `main_strings/automation_share_waiting.webp`
+    - `main_strings/conversion_result_app_messaging.webp`
+    - `main_strings/conversion_result_app_osmand.webp`
+
+3. A few screenshots require the TomTom app installed. It seems to be easier to
+   install the app on a physical device. So install the app on a physical
+   device, start it, and run:
+
+    ```shell
+    ./gradlew :app:connectedFreeDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=page.ooooo.geoshare.screenshots
+    ```
+
+   Then copy the following screenshots from
+   `build/outputs/connected_android_test_additional_output/freeDebugAndroidTest/connected/<device>`
+   to `docs/screenshots`:
+
+    - `main_strings/conversion_result_location_loading_indicator.webp`
+    - `main_strings/conversion_result_location_rationale.webp`
+    - `main_strings/conversion_result_message_error.webp`
 
 ### Manual testing
 

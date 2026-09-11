@@ -4,11 +4,8 @@ import android.annotation.SuppressLint
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -16,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,7 +23,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import page.ooooo.geoshare.R
 import page.ooooo.geoshare.data.OutputRepository
@@ -47,18 +48,22 @@ import page.ooooo.geoshare.ui.theme.LocalSpacing
 fun ResultSheet(
     points: Points,
     selectedPointIndex: Int,
-    appDetails: AppDetails,
+    appDetails: StateFlow<AppDetails>,
     initialValue: SheetValue = SheetValue.Hidden,
-    outputsForPoint: List<PointOutput>,
-    outputsForPoints: List<PointsOutput>,
+    outputsForPoint: StateFlow<List<PointOutput>>,
+    outputsForPoints: StateFlow<List<PointsOutput>>,
     onExecute: (action: Action<*>) -> Unit,
     onSelectPointIndex: (index: Int?) -> Unit,
 ) {
+    val selectedPoint = points.getOrNull(selectedPointIndex) ?: return
+
     val coroutineScope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
     val sheetState = rememberBottomSheetState(initialValue)
 
-    val selectedPoint = points.getOrNull(selectedPointIndex) ?: return
+    val appDetails by appDetails.collectAsStateWithLifecycle()
+    val outputsForPoint by outputsForPoint.collectAsStateWithLifecycle()
+    val outputsForPoints by outputsForPoints.collectAsStateWithLifecycle()
 
     fun hide() {
         coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
@@ -70,10 +75,6 @@ fun ResultSheet(
 
     ModalBottomSheet(
         onDismissRequest = { onSelectPointIndex(null) },
-        modifier = Modifier
-            // Set and consume insets to prevent unclickable items when the sheet is expanded (probably a bug in
-            // Compose Material 3)
-            .windowInsetsPadding(WindowInsets.safeDrawing),
         sheetState = sheetState,
     ) {
         LazyColumn(
@@ -171,10 +172,10 @@ private fun DefaultPreview() {
             ResultSheet(
                 points = persistentListOf(WGS84Point(NaivePoint.example), WGS84Point(NaivePoint.genRandomPoint())),
                 selectedPointIndex = 1,
-                appDetails = emptyMap(),
+                appDetails = MutableStateFlow(emptyMap()),
                 initialValue = SheetValue.Expanded,
-                outputsForPoint = outputRepository.getOutputsForPoint(defaultFakeLinks),
-                outputsForPoints = outputRepository.getOutputsForPoints(),
+                outputsForPoint = MutableStateFlow(outputRepository.getOutputsForPoint(defaultFakeLinks)),
+                outputsForPoints = MutableStateFlow(outputRepository.getOutputsForPoints()),
                 onExecute = {},
                 onSelectPointIndex = {},
             )
@@ -202,10 +203,10 @@ private fun DarkPreview() {
             ResultSheet(
                 points = persistentListOf(WGS84Point(NaivePoint.example), WGS84Point(NaivePoint.genRandomPoint())),
                 selectedPointIndex = 1,
-                appDetails = emptyMap(),
+                appDetails = MutableStateFlow(emptyMap()),
                 initialValue = SheetValue.Expanded,
-                outputsForPoint = outputRepository.getOutputsForPoint(defaultFakeLinks),
-                outputsForPoints = outputRepository.getOutputsForPoints(),
+                outputsForPoint = MutableStateFlow(outputRepository.getOutputsForPoint(defaultFakeLinks)),
+                outputsForPoints = MutableStateFlow(outputRepository.getOutputsForPoints()),
                 onExecute = {},
                 onSelectPointIndex = {},
             )
@@ -229,10 +230,10 @@ private fun LastPointPreview() {
             ResultSheet(
                 points = persistentListOf(WGS84Point(NaivePoint.example)),
                 selectedPointIndex = 0,
-                appDetails = emptyMap(),
+                appDetails = MutableStateFlow(emptyMap()),
                 initialValue = SheetValue.Expanded,
-                outputsForPoint = outputRepository.getOutputsForPoint(defaultFakeLinks),
-                outputsForPoints = outputRepository.getOutputsForPoints(),
+                outputsForPoint = MutableStateFlow(outputRepository.getOutputsForPoint(defaultFakeLinks)),
+                outputsForPoints = MutableStateFlow(outputRepository.getOutputsForPoints()),
                 onExecute = {},
                 onSelectPointIndex = {},
             )
@@ -260,10 +261,10 @@ private fun DarkLastPointPreview() {
             ResultSheet(
                 points = persistentListOf(WGS84Point(NaivePoint.example)),
                 selectedPointIndex = 0,
-                appDetails = emptyMap(),
+                appDetails = MutableStateFlow(emptyMap()),
                 initialValue = SheetValue.Expanded,
-                outputsForPoint = outputRepository.getOutputsForPoint(defaultFakeLinks),
-                outputsForPoints = outputRepository.getOutputsForPoints(),
+                outputsForPoint = MutableStateFlow(outputRepository.getOutputsForPoint(defaultFakeLinks)),
+                outputsForPoints = MutableStateFlow(outputRepository.getOutputsForPoints()),
                 onExecute = {},
                 onSelectPointIndex = {},
             )

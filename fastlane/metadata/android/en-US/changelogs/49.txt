@@ -1,2 +1,5 @@
 - Added the option to copy point name to clipboard.
+- Added top bar with original link, elapsed time, and link processing log.
+- Replaced the "Copy original link" button with the original link in top bar.
 - Replaced intro screen with contextual help messages.
+- Improved rendering speed of the result screen.

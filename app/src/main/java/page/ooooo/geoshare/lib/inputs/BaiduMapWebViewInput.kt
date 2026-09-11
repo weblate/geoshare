@@ -2,7 +2,6 @@ package page.ooooo.geoshare.lib.inputs
 
 import android.content.res.Resources
 import android.webkit.WebSettings
-import androidx.annotation.StringRes
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -21,11 +20,8 @@ class BaiduMapWebViewInput @Inject constructor(
     @Serializable
     private data class ExtractedPoint(val lat: Double?, val lon: Double?, val z: Double?, val name: String?)
 
-    @StringRes
-    override val permissionTitleResId = R.string.converter_baidu_map_permission_title
-
-    @StringRes
-    override val loadingIndicatorTitleResId = R.string.converter_baidu_map_loading_indicator_title
+    override fun getName(resources: Resources) = resources.getString(R.string.input_baidu_map_web_view_name)
+    override val group = InputGroup.BAIDU_MAP
 
     /**
      * Notice that we don't take coordinates from `_appStateFromUrl.loc`, because these have a longitude offset.

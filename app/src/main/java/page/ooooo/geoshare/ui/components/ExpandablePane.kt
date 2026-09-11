@@ -1,6 +1,8 @@
 package page.ooooo.geoshare.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,13 +46,14 @@ fun ExpandablePane(
         ) {
             CompositionLocalProvider(LocalContentColor provides color) {
                 title()
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                )
+                Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null)
             }
         }
-        AnimatedVisibility(expanded) {
+        AnimatedVisibility(
+            expanded,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+        ) {
             content()
         }
     }

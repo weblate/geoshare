@@ -1,7 +1,6 @@
 package page.ooooo.geoshare.lib.inputs
 
 import android.content.res.Resources
-import androidx.annotation.StringRes
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readLine
@@ -21,11 +20,8 @@ class WazeHtmlInput @Inject constructor(
     override val log: Log,
     override val uriQuote: UriQuote,
 ) : BodyAsChannelInput {
-    @StringRes
-    override val permissionTitleResId = R.string.converter_waze_permission_title
-
-    @StringRes
-    override val loadingIndicatorTitleResId = R.string.converter_waze_loading_indicator_title
+    override fun getName(resources: Resources) = resources.getString(R.string.input_waze_html_name)
+    override val group = InputGroup.WAZE
 
     override suspend fun parse(data: ByteReadChannel, match: String, resources: Resources) = parseResult {
         val pattern = Regex(""""latLng":\{"lat":$LAT,"lng":$LON\}""")

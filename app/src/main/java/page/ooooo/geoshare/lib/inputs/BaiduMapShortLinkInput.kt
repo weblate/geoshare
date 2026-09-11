@@ -1,7 +1,6 @@
 package page.ooooo.geoshare.lib.inputs
 
 import android.content.res.Resources
-import androidx.annotation.StringRes
 import io.ktor.client.engine.HttpClientEngine
 import kotlinx.collections.immutable.persistentListOf
 import page.ooooo.geoshare.R
@@ -18,17 +17,13 @@ class BaiduMapShortLinkInput @Inject constructor(
     override val log: Log,
     override val uriQuote: UriQuote,
 ) : HeadLocationHeaderInput {
+    override fun getName(resources: Resources) = resources.getString(R.string.input_baidu_map_short_link_name)
     override val group = InputGroup.BAIDU_MAP
     override val changelog = persistentListOf(
         InputChangelogItem.Url(35, "https://j.map.baidu.com"),
     )
+
     override val pattern = Regex("""((?:https?://)?j\.map\.baidu\.com/\S+)""")
-
-    @StringRes
-    override val permissionTitleResId = R.string.converter_baidu_map_permission_title
-
-    @StringRes
-    override val loadingIndicatorTitleResId = R.string.converter_baidu_map_loading_indicator_title
 
     override suspend fun parse(data: Uri, match: String, resources: Resources) = parseResult {
         next = MatchedInput(baiduMapUriInput.get(), data.toString())

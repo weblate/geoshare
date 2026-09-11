@@ -16,12 +16,15 @@ import javax.inject.Singleton
 class MapsMeUriInput @Inject constructor(
     override val uriQuote: UriQuote,
 ) : UriInput {
+    override fun getName(resources: Resources) = group.getName(resources)
+
     override val group = InputGroup.MAPS_ME
     override val changelog = persistentListOf(
         InputChangelogItem.Url(25, "http://ge0.me/"),
         InputChangelogItem.Url(25, "https://omaps.app/"),
         InputChangelogItem.Url(25, "https://comaps.at/"),
     )
+
     override val pattern = Regex("""((?:(?:https?://)?(?:comaps\.at|ge0\.me|omaps\.app)|ge0:/)/$URI_REST)""")
 
     override suspend fun parse(data: Uri, match: String, resources: Resources) = parseResult {

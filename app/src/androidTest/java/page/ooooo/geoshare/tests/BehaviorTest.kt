@@ -203,10 +203,6 @@ fun assumeNotEmulator() {
     assumeTrue("This test only works on a physical device, not an emulator", Build.HARDWARE != "ranchu")
 }
 
-fun UiAutomatorTestScope.dismissHelpMessage() {
-    onElement { viewIdResourceName == "geoShareHelpMessageDismiss" }.click()
-}
-
 /**
  * Check that the result screen shows [expectedPoints]
  *
@@ -477,7 +473,7 @@ fun UiAutomatorTestScope.scrollToLinkIcons() {
             try {
                 scroll(Direction.DOWN, 2f)
             } catch (_: StaleObjectException) {
-                // Stale object can happen on Xiaomi, do nothing
+                // Stale object can happen on Redmi 8, do nothing
             }
         }
     }

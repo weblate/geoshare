@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
@@ -25,6 +26,7 @@ import page.ooooo.geoshare.lib.FakeLog
 import page.ooooo.geoshare.lib.FakeUriQuote
 import page.ooooo.geoshare.lib.geo.Source
 import page.ooooo.geoshare.lib.geo.WGS84Point
+import page.ooooo.geoshare.lib.inputs.InputGroup
 import page.ooooo.geoshare.lib.inputs.MatchedInput
 import page.ooooo.geoshare.lib.inputs.ParseResult
 import page.ooooo.geoshare.lib.inputs.WebViewInput
@@ -41,8 +43,9 @@ class PermissionGrantedWebViewInputTest {
     private val log = FakeLog
     private val source = "https://maps.google.com/foo"
     private val input = object : WebViewInput {
-        override val permissionTitleResId = R.string.converter_google_maps_permission_title
-        override val loadingIndicatorTitleResId = R.string.converter_google_maps_loading_indicator_title
+        override fun getName(resources: Resources) = "Test Input"
+        override val group = InputGroup.DEBUG
+
         override val timeout = 7.seconds
 
         override fun getUnsafeExtractionJavaScript(match: String) = "undefined"
@@ -62,7 +65,6 @@ class PermissionGrantedWebViewInputTest {
     private val maxAttempts = 3
     private val resources: Resources = mock {
         on { getString(R.string.conversion_failed_unsupported_source_place_list) } doReturn "Place lists are not supported"
-        on { getString(R.string.converter_google_maps_loading_indicator_title) } doReturn "Connecting to Google..."
         on { getString(R.string.conversion_failed_cancelled) } doReturn "Cancelled"
         on { getString(R.string.conversion_failed_reason_timeout) } doReturn "Timeout"
         on {
@@ -106,8 +108,8 @@ class PermissionGrantedWebViewInputTest {
     fun transition_whenPendingDataIsCompletedAndParseReturnsFailure_returnsDataParsed() =
         runTest {
             val input = object : WebViewInput {
-                override val permissionTitleResId = R.string.converter_google_maps_permission_title
-                override val loadingIndicatorTitleResId = R.string.converter_google_maps_loading_indicator_title
+                override fun getName(resources: Resources) = "Test Input"
+                override val group = InputGroup.DEBUG
 
                 override fun getUnsafeExtractionJavaScript(match: String) = "undefined"
 
@@ -254,7 +256,7 @@ class PermissionGrantedWebViewInputTest {
             ConversionFailed(
                 source,
                 resources.getString(R.string.network_exception_response_error, HttpStatusCode.NotFound.value),
-                details = "Request URL: $requestUrl",
+                stackTrace = "Request URL: $requestUrl",
             ),
             res,
         )
@@ -280,8 +282,9 @@ class PermissionGrantedWebViewInputTest {
     @Test
     fun transition_whenInputParseThrowsCancellationException_returnsConversionFailed() = runTest {
         val input = object : WebViewInput {
-            override val permissionTitleResId = R.string.converter_google_maps_permission_title
-            override val loadingIndicatorTitleResId = R.string.converter_google_maps_loading_indicator_title
+            override fun getName(resources: Resources) = "Test Input"
+            override val group = InputGroup.DEBUG
+
             override val timeout = 7.seconds
 
             override fun getUnsafeExtractionJavaScript(match: String) = "undefined"
@@ -328,7 +331,7 @@ class PermissionGrantedWebViewInputTest {
     }
 
     @Test
-    fun getLoadingIndicator_whenLastAttemptIsNull_returnsLargeLoadingIndicatorWithoutDescription() = runTest {
+    fun getDetails_whenLastAttemptIsNull_returnsNull() = runTest {
         val state = PermissionGrantedWebViewInput(
             source,
             matchedInput,
@@ -337,16 +340,11 @@ class PermissionGrantedWebViewInputTest {
             lastAttempt = null,
             dispatcher = testScheduler,
         )
-        assertEquals(
-            LoadingIndicator.Large(
-                title = resources.getString(R.string.converter_google_maps_loading_indicator_title),
-            ),
-            state.getLoadingIndicator(resources),
-        )
+        assertNull(state.getDetails(resources))
     }
 
     @Test
-    fun getLoadingIndicator_whenLastAttemptNumberIsOne_returnsLargeLoadingIndicatorWithDescription() = runTest {
+    fun getDetails_whenLastAttemptNumberIsOne_returnsDetails() = runTest {
         val lastAttempt = Attempt<RecoverableNetworkException>(1, lastCause)
         val state = PermissionGrantedWebViewInput(
             source,
@@ -357,16 +355,13 @@ class PermissionGrantedWebViewInputTest {
             dispatcher = testScheduler,
         )
         assertEquals(
-            LoadingIndicator.Large(
-                title = resources.getString(R.string.converter_google_maps_loading_indicator_title),
-                description = resources.getString(
-                    R.string.conversion_loading_indicator_description,
-                    2,
-                    10,
-                    resources.getString(R.string.network_exception_eof),
-                ),
+            resources.getString(
+                R.string.conversion_loading_indicator_description,
+                2,
+                10,
+                resources.getString(R.string.network_exception_eof),
             ),
-            state.getLoadingIndicator(resources),
+            state.getDetails(resources),
         )
     }
 }

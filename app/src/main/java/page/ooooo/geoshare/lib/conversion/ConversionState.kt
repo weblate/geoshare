@@ -2,7 +2,6 @@ package page.ooooo.geoshare.lib.conversion
 
 import android.content.res.Resources
 import android.net.Uri
-import androidx.annotation.StringRes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -58,9 +57,18 @@ interface ConversionState {
         val source: String
     }
 
+    interface HasDescription {
+        fun getDescription(resources: Resources): String
+        fun getDetails(resources: Resources): String? = null
+        fun getLoadingIndicatorTitle(resources: Resources): String? = null
+
+        @Suppress("SameReturnValue")
+        val uri: String? get() = null
+    }
+
     interface HasError : HasSource {
         val message: String
-        val details: String?
+        val stackTrace: String?
         val warning: Boolean
     }
 
@@ -69,18 +77,12 @@ interface ConversionState {
     }
 
     interface HasPermission : HasSource {
-        val permissionTitleResId: Int
-
         suspend fun grant(stateContext: ConversionStateContext, doNotAsk: Boolean): ConversionState
         suspend fun deny(stateContext: ConversionStateContext, doNotAsk: Boolean): ConversionState
     }
 
-    interface HasSmallLoadingIndicator {
-        fun getLoadingIndicator(resources: Resources): LoadingIndicator.Small
-    }
-
-    interface HasLargeLoadingIndicator {
-        fun getLoadingIndicator(resources: Resources): LoadingIndicator.Large?
+    interface HasAttempt : HasSource {
+        val lastAttempt: Attempt<RecoverableNetworkException>?
     }
 }
 
@@ -128,17 +130,9 @@ data class InputMatched(
     override suspend fun transition(stateContext: ConversionStateContext): ConversionState? {
         return if (matchedInput.input is Input.HasPermission) {
             when (permission ?: stateContext.userPreferencesRepository.getValue(ConnectionPermissionPreference)) {
-                Permission.ALWAYS -> PermissionGranted(
-                    source, matchedInput, Permission.ALWAYS, results
-                )
-
-                Permission.ASK -> PermissionRequested(
-                    source, matchedInput, results, matchedInput.input.permissionTitleResId
-                )
-
-                Permission.NEVER -> PermissionDenied(
-                    source, matchedInput, results
-                )
+                Permission.ALWAYS -> PermissionGranted(source, matchedInput, Permission.ALWAYS, results)
+                Permission.ASK -> PermissionRequested(source, matchedInput, results)
+                Permission.NEVER -> PermissionDenied(source, matchedInput, results)
             }
         } else {
             PermissionGranted(source, matchedInput, permission, results)
@@ -157,7 +151,6 @@ data class PermissionRequested(
     override val source: String,
     val matchedInput: MatchedInput<*>,
     val results: Results = emptyMap(),
-    override val permissionTitleResId: Int,
 ) : ConversionState, ConversionState.HasPermission {
     override suspend fun grant(stateContext: ConversionStateContext, doNotAsk: Boolean): ConversionState {
         if (doNotAsk) {
@@ -225,10 +218,10 @@ data class PermissionGrantedBasicInput<T>(
     val matchedInput: MatchedInput<BasicInput<T>>,
     val permission: Permission?,
     val results: Results,
-    val lastAttempt: Attempt<RecoverableNetworkException>? = null,
+    override val lastAttempt: Attempt<RecoverableNetworkException>? = null,
     val maxAttempts: Int = 10,
     val dispatcher: CoroutineContext = Dispatchers.Default,
-) : ConversionState, ConversionState.HasSource, ConversionState.HasLargeLoadingIndicator {
+) : ConversionState, ConversionState.HasSource, ConversionState.HasDescription, ConversionState.HasAttempt {
     override suspend fun transition(stateContext: ConversionStateContext): ConversionState = try {
         withContext(dispatcher) {
             val attemptNumber = lastAttempt?.number?.plus(1) ?: 1
@@ -275,20 +268,26 @@ data class PermissionGrantedBasicInput<T>(
         ConversionFailed(source, stateContext.resources.getString(R.string.conversion_failed_cancelled))
     }
 
-    override fun getLoadingIndicator(resources: Resources) =
-        (matchedInput.input as? Input.HasPermission)?.loadingIndicatorTitleResId?.let { loadingIndicatorTitleResId ->
-            LoadingIndicator.Large(
-                title = resources.getString(loadingIndicatorTitleResId),
-                description = lastAttempt?.let {
-                    resources.getString(
-                        R.string.conversion_loading_indicator_description,
-                        it.number + 1,
-                        maxAttempts,
-                        it.cause.getMessage(resources),
-                    )
-                },
-            )
+    override fun getDescription(resources: Resources) =
+        resources.getString(R.string.conversion_processing, matchedInput.input.getName(resources))
+
+    override fun getDetails(resources: Resources) = lastAttempt?.let {
+        resources.getString(
+            R.string.conversion_loading_indicator_description,
+            it.number + 1,
+            maxAttempts,
+            it.cause.getMessage(resources),
+        )
+    }
+
+    override fun getLoadingIndicatorTitle(resources: Resources) =
+        if (matchedInput.input is Input.HasPermission) {
+            resources.getString(R.string.conversion_connecting, matchedInput.input.group.getName(resources))
+        } else {
+            null
         }
+
+    override val uri = matchedInput.match
 
     override fun toString() =
         "$TAG(source=$source, matchedInput=$matchedInput, permission=$permission, results=$results, lastAttempt=$lastAttempt)"
@@ -319,10 +318,10 @@ data class PermissionGrantedWebViewInput(
     val matchedInput: MatchedInput<WebViewInput>,
     val permission: Permission?,
     val results: Results,
-    val lastAttempt: Attempt<RecoverableNetworkException>? = null,
+    override val lastAttempt: Attempt<RecoverableNetworkException>? = null,
     val maxAttempts: Int = 3,
     val dispatcher: CoroutineContext = Dispatchers.Default,
-) : ConversionState, ConversionState.HasSource, ConversionState.HasLargeLoadingIndicator {
+) : ConversionState, ConversionState.HasSource, ConversionState.HasDescription, ConversionState.HasAttempt {
     val pendingData: CompletableDeferred<String> = CompletableDeferred()
 
     override suspend fun transition(stateContext: ConversionStateContext): ConversionState = try {
@@ -363,20 +362,22 @@ data class PermissionGrantedWebViewInput(
         ConversionFailed(source, stateContext.resources.getString(R.string.conversion_failed_cancelled))
     }
 
-    override fun getLoadingIndicator(resources: Resources) =
-        (matchedInput.input as? Input.HasPermission)?.loadingIndicatorTitleResId?.let { loadingIndicatorTitleResId ->
-            LoadingIndicator.Large(
-                title = resources.getString(loadingIndicatorTitleResId),
-                description = lastAttempt?.let {
-                    resources.getString(
-                        R.string.conversion_loading_indicator_description,
-                        it.number + 1,
-                        maxAttempts,
-                        it.cause.getMessage(resources),
-                    )
-                },
-            )
-        }
+    override fun getDescription(resources: Resources) =
+        resources.getString(R.string.conversion_processing, matchedInput.input.getName(resources))
+
+    override fun getDetails(resources: Resources) = lastAttempt?.let {
+        resources.getString(
+            R.string.conversion_loading_indicator_description,
+            it.number + 1,
+            maxAttempts,
+            it.cause.getMessage(resources),
+        )
+    }
+
+    override fun getLoadingIndicatorTitle(resources: Resources) =
+        resources.getString(R.string.conversion_connecting, matchedInput.input.group.getName(resources))
+
+    override val uri = matchedInput.match
 
     override fun toString() =
         "$TAG(source=$source, matchedInput=$matchedInput, permission=$permission, results=$results)"
@@ -546,7 +547,7 @@ data class ConversionSucceeded(
 data class ConversionFailed(
     override val source: String,
     override val message: String,
-    override val details: String? = null,
+    override val stackTrace: String? = null,
     override val warning: Boolean = false,
 ) : ConversionState, ConversionState.HasError {
     override fun toString() = "$TAG(source=$source, message=$message, warning=$warning)"
@@ -826,9 +827,6 @@ data class LocationRationaleShown(
     val action: LocationAction<*>,
     val isAutomation: Boolean,
 ) : ConversionState, ConversionState.HasPermission, ConversionState.HasResult {
-    @StringRes
-    override val permissionTitleResId = R.string.conversion_succeeded_location_rationale_dialog_title
-
     override suspend fun grant(stateContext: ConversionStateContext, doNotAsk: Boolean): ConversionState =
         LocationRationaleConfirmed(source, points, action, isAutomation)
 
@@ -860,11 +858,7 @@ data class LocationPermissionReceived(
     override val points: Points,
     val action: LocationAction<*>,
     val isAutomation: Boolean,
-) : ConversionState, ConversionState.HasSmallLoadingIndicator, ConversionState.HasResult {
-    override fun getLoadingIndicator(resources: Resources): LoadingIndicator.Small = LoadingIndicator.Small(
-        resources.getString(R.string.conversion_succeeded_location_loading_indicator_title)
-    )
-
+) : ConversionState, ConversionState.HasResult {
     override fun toString() = "$TAG(source=$source, points=$points, action=$action, isAutomation=$isAutomation)"
 
     private companion object {
